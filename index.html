@@ -1,0 +1,266 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="content-type" content="text/html;charset=utf-8" />
+<title>Chart</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+	<link href="https://fonts.googleapis.com/css?family=Open+Sans:400,700" rel="stylesheet">
+	<link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+	<link rel="stylesheet" type="text/css" href="http://bgrins.github.io/spectrum/spectrum.css" />
+	<link rel="stylesheet" type="text/css" href="css/style.css" />
+</head>
+<body>
+    <div class="container-fluid">
+      <div class="row px-5">
+
+        <div id="myChart" style="width: 100%; height: 100%;"></div>
+        <div id="filters"></div>
+
+      </div>
+    </div>
+
+
+    
+	<script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+	<script type="text/javascript" src="http://bgrins.github.io/spectrum/spectrum.js"></script>
+
+	<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+
+	<script type="text/javascript">
+		
+        
+
+		var ChartHelper = {
+
+			data: [],
+			labels: [],
+			datarray: [],
+			controls: false,
+
+			init: function() {
+				this.setupChart();
+				this.bindEvents();
+			},
+			bindEvents: function() {
+
+				// Load the Visualization API and the corechart package.
+			      google.charts.load('current', {'packages':['bar']});
+
+			      // Set a callback to run when the Google Visualization API is loaded.
+			      google.charts.setOnLoadCallback(ChartHelper.drawChart);
+
+			      if (document.addEventListener) {
+					    window.addEventListener('resize', ChartHelper.resizeChart);
+					}
+					else if (document.attachEvent) {
+					    window.attachEvent('onresize', ChartHelper.resizeChart);
+					}
+					else {
+					    window.resize = ChartHelper.resizeChart;
+					}
+
+			},
+
+			drawChart: function() {
+				 // Create the data table.
+		        var data = new google.visualization.DataTable();
+
+		        ChartHelper.data = google.visualization.arrayToDataTable(ChartHelper.datarray);
+
+		        
+
+		        // Set chart options
+		        ChartHelper.options = {
+			        title: 'Usuários influentes',
+					width: '100%',
+			        height: 800,
+			        chartArea: {width: '85%', top: 50,left:10},
+			        //legend: {'position': 'bottom'},
+			        stacked: true
+			      };
+			    
+			    ChartHelper.data.sort([{column: 1, desc: true}]);
+
+		        // Instantiate and draw our chart, passing in some options.
+		        ChartHelper.chart = new google.charts.Bar(document.getElementById('myChart'));
+		        ChartHelper.chart.draw(ChartHelper.data, google.charts.Bar.convertOptions(ChartHelper.options));
+
+		        google.visualization.events.addListener(ChartHelper.chart, 'ready', ChartHelper.afterDraw);		        
+
+			},
+
+			afterDraw: function() {
+					if(ChartHelper.controls == false){
+						ChartHelper.labels = [];
+						// push labels sorted
+						Object.keys(ChartHelper.data.og).filter(function(index) {
+		      					ChartHelper.labels.push(ChartHelper.data.og[index].c[0].v);
+		      					//console.log(ChartHelper.data.og[index]);
+		      			});
+
+						$.each(ChartHelper.labels, function(index,el) {
+			            	$('#filters').append('<label for="'+ChartHelper.labels[index]+'"><input type="checkbox" id="'+ChartHelper.labels[index]+'" value="'+ChartHelper.labels[index]+'" onclick="ChartHelper.filterAxis()" checked />'+ChartHelper.labels[index]+'</label>');
+			            });
+
+			            ChartHelper.controls = true;
+					}
+			},
+
+			getBrands: function() {
+				$.ajax({
+				  url: "./data/brands.json",
+				  dataType: 'json',
+				  async: false,
+				  success: function(data) {
+					ChartHelper.brands = [];
+					$.each( data, function( key, val ) {
+							
+							if(ChartHelper.labels.indexOf(val.name) === -1){
+								ChartHelper.labels.push( val.name );
+								ChartHelper.brands.push(val);
+							}
+							
+					});
+				  }
+				});
+
+				// push brands
+				Object.keys(ChartHelper.brands).filter(function(index) {
+      					ChartHelper.datarray.push([ChartHelper.brands[index].name]);
+      			});
+				
+			},
+
+			getUsers: function() {
+				$.ajax({
+				  url: "./data/users.json",
+				  dataType: 'json',
+				  async: false,
+				  success: function(data) {
+					ChartHelper.users = [];
+					  $.each( data, function( key, val ) {
+					  		ChartHelper.users.push(val);
+					  		ChartHelper.setupDatasets(val,key);
+					  });
+				  }
+				});
+
+				// push users
+				var users = [];
+				Object.keys(ChartHelper.users).filter(function(index) {
+      					users.push(ChartHelper.users[index].login.username);
+      			});
+				users.unshift('Marcas');
+      			ChartHelper.datarray.unshift(users);
+			},
+
+			getInteractions: function() {
+				
+				$.ajax({
+				  url: "./data/interactions.json",
+				  dataType: 'json',
+				  async: false,
+				  success: function(data) {
+					ChartHelper.interactions = [];
+					  $.each( data, function( key, val ) {
+					  		ChartHelper.interactions.push(val);
+					  });
+				  }
+				});
+
+			},
+
+			setupDatasets: function(user,i) {
+				var totalInte;
+				var userdata = [];
+				var j = i+1;
+				$.each(ChartHelper.labels, function( key, val ){
+					totalInte = 0;
+					$.each(ChartHelper.interactions, function( key2, val2 ){
+						if(user.id == val2.user) {
+							Object.keys(ChartHelper.brands).filter(function(index) {
+							    if(ChartHelper.brands[index].id == val2.brand && ChartHelper.brands[index].name == val)
+							    	totalInte++;
+							});
+						}
+					});
+
+					
+					if(totalInte > 0)
+						userdata = totalInte;
+					else
+						userdata = '';
+
+					
+					
+					ChartHelper.datarray[key][j] = totalInte;
+				
+				});
+
+				
+
+				
+				
+				
+
+				
+			},
+
+			setupChart: function() {
+				
+
+		        ChartHelper.datarray = [];
+
+				this.getBrands();
+				this.getInteractions();
+				this.getUsers();		
+		        
+			},
+
+			filterAxis: function() {
+			
+				var updateData = [];
+				//console.log(updateData);
+				$('#filters input').each(function(index,el) {
+					if($(el).prop('checked') !== false){
+							Object.keys(ChartHelper.datarray).filter(function(index2) {
+								
+								if(ChartHelper.datarray[index2][0] == $(el).prop('id')){
+									updateData.push(ChartHelper.datarray[index2]);
+								}
+							});
+					}
+				});
+
+				// setup fisrt row
+				updateData.unshift(ChartHelper.datarray[0]);
+
+				// setup data
+				ChartHelper.data = google.visualization.arrayToDataTable(updateData);
+
+				// sort before draw
+				ChartHelper.data.sort([{column: 1, desc: true}]);
+
+				// draw
+				ChartHelper.chart.draw(ChartHelper.data, google.charts.Bar.convertOptions(ChartHelper.options));
+			},
+			
+			resizeChart: function() {
+    			ChartHelper.chart.draw(ChartHelper.data, ChartHelper.options);
+			}
+
+
+		};
+
+
+		$(document).ready(function() {
+			// ready
+			ChartHelper.init();
+		});
+	</script>
+</body>
+</html>	
